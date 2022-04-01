@@ -23,7 +23,7 @@ class TrackSource(discord.PCMVolumeTransformer):
     # issues sometimes
   }
   ffmpeg_options = {
-    'executable': 'ffmpeg/bin/ffmpeg.exe',
+    'executable': 'ffmpeg',
     'before_options': '-stream_loop -1',
     'options': '-vn'
   }

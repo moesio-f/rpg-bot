@@ -1,6 +1,8 @@
 import argparse
 import typing
 
+from rpg_bot.cogs.music.ost_key import OSTKey
+
 
 class ClientInput(typing.NamedTuple):
   token: str
@@ -25,12 +27,16 @@ def parse_arguments() -> ClientInput:
                      urls=read_urls(url_fname))
 
 
-def read_urls(fname: str) -> typing.List[str]:
-  urls = []
+def read_urls(fname: str) -> typing.Dict[OSTKey, typing.List[str]]:
+  dictionary = {k: [] for k in OSTKey}
   with open(fname, 'r') as file:
     for line in file:
-      urls.append(line)
-  return urls
+      splitted = line.split(":", 1)
+      key = OSTKey.from_str(splitted[0][0])
+      url = splitted[1]
+      dictionary[key].append(url)
+
+  return dictionary
 
 
 def check_is_owner(ctx):

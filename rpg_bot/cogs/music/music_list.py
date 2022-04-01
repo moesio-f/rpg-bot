@@ -1,17 +1,19 @@
 import typing
+import collections
 
 from discord.ext import commands
 from spotdl.search import song_gatherer
 
 from rpg_bot import utils
-from rpg_bot.cogs.music import track_source, track_info
+from rpg_bot.cogs.music import track_source, track_info, ost_key
 
 
 class MusicList(commands.Cog):
-  def __init__(self, bot, urls: typing.List[str]):
+  def __init__(self, bot, urls: typing.Dict[ost_key.OSTKey, typing.List[str]]):
     self._bot = bot
-    self._tracks = [track_info.TrackInfo(url=u) for u in urls]
-    self._current_track_idx: int = -1
+    self._tracks = {k: [track_info.TrackInfo(url=u) for u in lu]
+                    for k, lu in urls.items()}
+    self._current_track: ost_key.KeyIndex = ost_key.KeyIndex(key=None, index=-1)
     self._tracks_info_initialized = False
 
     def update_url(track):
@@ -26,50 +28,64 @@ class MusicList(commands.Cog):
 
   async def cog_before_invoke(self, ctx):
     if not self._tracks_info_initialized:
-      for track in self._tracks:
-        self._update_url_if_spotify(track)
-        data = await track_source.TrackSource.fetch_data(track.url,
-                                                         loop=self._bot.loop,
-                                                         download=False)
-        track.title = data.get('title')
+      for k in ost_key.OSTKey:
+        for track in self._tracks[k]:
+          self._update_url_if_spotify(track)
+          data = await track_source.TrackSource.fetch_data(track.url,
+                                                           loop=self._bot.loop,
+                                                           download=False)
+          track.title = data.get('title')
       self._tracks_info_initialized = True
 
   @commands.command(aliases=['a'])
-  async def add(self, ctx, url: str):
+  async def add(self, ctx, t: str, url: str):
+    key = ost_key.OSTKey.from_str(t)
+
+    if key is None:
+      return await ctx.send(f'{t} não é um tipo de OST válido.')
+
     track = track_info.TrackInfo(url=url)
     self._update_url_if_spotify(track)
     data = await track_source.TrackSource.fetch_data(track.url,
                                                      loop=self._bot.loop,
                                                      download=False)
     track.title = data.get('title')
-    self._tracks.append(track)
+    self._tracks[key].append(track)
     await ctx.send(f'Faixa \"{self._tracks[-1].title}\" adicionada.')
 
   @commands.command(aliases=['r', 'rem'])
-  async def remove(self, ctx, index: int):
-    if index not in range(len(self._tracks)):
+  async def remove(self, ctx, value: str):
+    key = ost_key.OSTKey.from_str(value[0])
+    index = int(value[1:]) - 1
+
+    if key is None or index not in range(len(self._tracks[key])):
       return await ctx.send(f'Faixa inválida.')
 
     title = self._tracks[index].title
-    del self._tracks[index]
-    await ctx.send(f'Faixa {index} (\"{title}\") removida.')
+    del self._tracks[key][index]
+    await ctx.send(f'Faixa \"{title}\" ({key.name}{index}) removida.')
 
   @commands.command(aliases=['p'])
-  async def play(self, ctx, index: int):
-    if index not in range(len(self._tracks)):
+  async def play(self, ctx, value: str):
+    key = ost_key.OSTKey.from_str(value[0])
+    index = int(value[1:]) - 1
+
+    if key is None or index not in range(len(self._tracks[key])):
       return await ctx.send(f'Faixa inválida.')
     else:
-      self._current_track_idx = index
+      self._current_track = ost_key.KeyIndex(key=key, index=index)
 
     track = await track_source.TrackSource.from_url(
-      self._tracks[index].url, loop=self._bot.loop, stream=True)
+      self._tracks[key][index].url,
+      loop=self._bot.loop,
+      stream=True)
 
     async with ctx.typing():
       ctx.voice_client.play(track,
                             after=lambda e: print(e) if e else None)
 
     await ctx.send('Tocando '
-                   f'\"{self._tracks[index].title}\" '
+                   f'{key.name}{index + 1}: \"{self._tracks[key][index].title}\" '
                    'na caixa!!')
 
   @commands.command(aliases=['v', 'vol'])
@@ -96,16 +112,23 @@ class MusicList(commands.Cog):
   @commands.command()
   async def current(self, ctx):
     if ctx.voice_client and ctx.voice_client.is_playing():
-      current_track = self._tracks[self._current_track_idx]
+      k = self._current_track.key
+      i = self._current_track.index
+      current_track = self._tracks[k][i]
       await ctx.send(f"\"{current_track.title}\" "
-                     f"(Faixa {self._current_track_idx}) está atualmente "
+                     f"(Faixa {k.name}{i + 1}) está atualmente "
                      "tocando.")
 
   @commands.command(aliases=['l'])
   async def list(self, ctx):
-    music_list_str = '\n'.join([f"{i} | {t.title}" for i, t in
-                                enumerate(self._tracks)])
-    await ctx.send(f'Músicas na lista: \n' + music_list_str)
+    ordered_dict = collections.OrderedDict(sorted(self._tracks.items(),
+                                                  key=lambda k: str(k[0].name)))
+    music_list_str = '\n'.join(filter(None,
+                                      ['\n'.join([f"{k.name}{i + 1}:\t{t.title}"
+                                                  for i, t in
+                                                  enumerate(self._tracks[k])])
+                                       for k, lti in ordered_dict.items()]))
+    await ctx.send(f'Músicas na lista: \n' + f"```{music_list_str}```")
 
   @play.before_invoke
   async def ensure_voice(self, ctx):
