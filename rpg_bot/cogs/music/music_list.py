@@ -63,7 +63,7 @@ class MusicList(commands.Cog):
 
     title = self._tracks[key][index].title
     del self._tracks[key][index]
-    await ctx.send(f'Faixa \"{title}\" ({key.name}{index}) removida.')
+    await ctx.send(f'Faixa \"{title}\" ({key.name}{index + 1}) removida.')
 
   @commands.command(aliases=['p'])
   async def play(self, ctx, value: str):
