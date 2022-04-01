@@ -51,7 +51,7 @@ class MusicList(commands.Cog):
                                                      download=False)
     track.title = data.get('title')
     self._tracks[key].append(track)
-    await ctx.send(f'Faixa \"{self._tracks[-1].title}\" adicionada.')
+    await ctx.send(f'Faixa \"{track.title}\" adicionada.')
 
   @commands.command(aliases=['r', 'rem'])
   async def remove(self, ctx, value: str):
@@ -61,7 +61,7 @@ class MusicList(commands.Cog):
     if key is None or index not in range(len(self._tracks[key])):
       return await ctx.send(f'Faixa inválida.')
 
-    title = self._tracks[index].title
+    title = self._tracks[key][index].title
     del self._tracks[key][index]
     await ctx.send(f'Faixa \"{title}\" ({key.name}{index}) removida.')
 
@@ -85,7 +85,8 @@ class MusicList(commands.Cog):
                             after=lambda e: print(e) if e else None)
 
     await ctx.send('Tocando '
-                   f'{key.name}{index + 1}: \"{self._tracks[key][index].title}\" '
+                   f'{key.name}{index + 1}: '
+                   f'\"{self._tracks[key][index].title}\" '
                    'na caixa!!')
 
   @commands.command(aliases=['v', 'vol'])
