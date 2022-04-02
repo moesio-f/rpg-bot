@@ -4,6 +4,10 @@ import typing
 from rpg_bot.cogs.music.ost_key import OSTKey
 
 
+owner_ids = [300222466788425728, 419533052222373908,
+             335193595911077899, 952627911586877460]
+
+
 class ClientInput(typing.NamedTuple):
   token: str
   urls: typing.List[str]
@@ -40,7 +44,7 @@ def read_urls(fname: str) -> typing.Dict[OSTKey, typing.List[str]]:
 
 
 def check_is_owner(ctx):
-  return ctx.message.author.id == 300222466788425728
+  return ctx.message.author.id in owner_ids
 
 
 def is_spotify_track(url):
