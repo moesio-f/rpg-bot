@@ -166,12 +166,17 @@ class MusicList(commands.Cog):
     async def list(self, ctx):
         ordered_dict = collections.OrderedDict(sorted(self._tracks.items(),
                                                       key=lambda k: str(k[0].name)))
-        music_list_str = '\n'.join(filter(None,
-                                          ['\n'.join([f"{k.name}{i + 1}:\t{t.title} ({t.duration})"
-                                                      for i, t in
-                                                      enumerate(self._tracks[k])])
-                                           for k, _ in ordered_dict.items()]))
-        await ctx.send(f'Músicas na lista: \n' + f"```{music_list_str}```")
+        music_list = [f"{k.name}{i + 1}:\t{t.title} ({t.duration})"
+                      for k, l in ordered_dict.items()
+                      for i, t in enumerate(l)]
+        await ctx.send('Músicas na lista:')
+
+        entries = 10
+
+        async with ctx.typing():
+            for i in range(0, len(music_list), entries):
+                music_str = '\n'.join(music_list[i:i+entries])
+                await ctx.send(f"```{music_str}```")
 
     @play.before_invoke
     @play_group.before_invoke

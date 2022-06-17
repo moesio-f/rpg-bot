@@ -13,6 +13,7 @@ class OSTKey(enum.Enum):
   S = "Sad"
   T = "Terror"
   W = "What?"
+  Q = "Quimera"
 
   @classmethod
   def from_str(cls, value: str):
