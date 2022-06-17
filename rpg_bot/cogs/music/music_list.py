@@ -25,9 +25,6 @@ class MusicList(commands.Cog):
 
         self._update_url_if_spotify = update_url
 
-    async def cog_check(self, ctx):
-        return utils.check_is_owner(ctx)
-
     async def cog_before_invoke(self, ctx):
         if not self._tracks_info_initialized:
             for k in ost_key.OSTKey:
@@ -37,6 +34,7 @@ class MusicList(commands.Cog):
                                                                      loop=self._bot.loop,
                                                                      download=False)
                     track.title = data.get('title')
+                    track.duration = utils.format_duration(data.get('duration'))
             self._tracks_info_initialized = True
 
     @commands.command(aliases=['a'])
@@ -164,10 +162,10 @@ class MusicList(commands.Cog):
         ordered_dict = collections.OrderedDict(sorted(self._tracks.items(),
                                                       key=lambda k: str(k[0].name)))
         music_list_str = '\n'.join(filter(None,
-                                          ['\n'.join([f"{k.name}{i + 1}:\t{t.title}"
+                                          ['\n'.join([f"{k.name}{i + 1}:\t{t.title} ({t.duration})"
                                                       for i, t in
                                                       enumerate(self._tracks[k])])
-                                           for k, lti in ordered_dict.items()]))
+                                           for k, _ in ordered_dict.items()]))
         await ctx.send(f'Músicas na lista: \n' + f"```{music_list_str}```")
 
     @play.before_invoke
