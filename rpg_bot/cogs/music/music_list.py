@@ -24,8 +24,9 @@ class MusicList(commands.Cog):
                     spotify_url=track.url).youtube_link
 
         self._update_url_if_spotify = update_url
+        self._bot.loop.run_until_complete(self.__initialize())
 
-    async def cog_before_invoke(self, ctx):
+    async def __initialize(self):
         if not self._tracks_info_initialized:
             for k in ost_key.OSTKey:
                 for track in self._tracks[k]:
@@ -34,8 +35,12 @@ class MusicList(commands.Cog):
                                                                      loop=self._bot.loop,
                                                                      download=False)
                     track.title = data.get('title')
-                    track.duration = utils.format_duration(data.get('duration'))
+                    track.duration = utils.format_duration(
+                        data.get('duration'))
             self._tracks_info_initialized = True
+
+    async def cog_before_invoke(self, ctx):
+        await self.__initialize()
 
     @commands.command(aliases=['a'])
     async def add(self, ctx, t: str, url: str):
