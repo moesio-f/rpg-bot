@@ -3,15 +3,16 @@ import typing
 
 
 class OSTKey(enum.Enum):
-  N = "Iniciando"
+  I = "Iniciando"
   E = "Exploração"
   C = "Combate"
   A = "Aparições"
   H = "Heróicas"
   D = "Drama"
-  T = "Tristes"
+  S = "Sad"
   W = "What?"
   F = "Finalizando"
+  T = "Terror"
 
   @classmethod
   def from_str(cls, value: str):
