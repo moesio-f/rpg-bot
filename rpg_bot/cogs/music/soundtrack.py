@@ -5,11 +5,11 @@ import random
 from discord.ext import commands
 from spotdl.search import song_gatherer
 
-from rpg_bot import utils
+from rpg_bot.cogs.music import utils
 from rpg_bot.cogs.music import track_source, track_info, ost_key
 
 
-class MusicList(commands.Cog):
+class Soundtrack(commands.Cog):
     def __init__(self, bot, urls: typing.Dict[ost_key.OSTKey, typing.List[str]]):
         self._bot = bot
         self._tracks = {k: [track_info.TrackInfo(url=u) for u in lu]
