@@ -9,7 +9,9 @@ from rpg_bot.cogs.music import utils
 from rpg_bot.cogs.music import track_source, track_info, ost_key
 
 
-class Soundtrack(commands.Cog):
+class Soundtrack(commands.Cog,
+                 name='Soundtrack Manager',
+                 description='A simple soundtrack manager for RPG music tracks.'):
     """
     Soundtrack manager for RPG music tracks.
     """
