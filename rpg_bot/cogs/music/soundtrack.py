@@ -2,7 +2,7 @@ import typing
 import collections
 import random
 
-from discord.ext import commands
+from discord.ext import commands, tasks
 from spotdl.search import song_gatherer
 
 from rpg_bot.cogs.music import utils
@@ -24,6 +24,7 @@ class Soundtrack(commands.Cog,
             key=None, index=-1)
         self._tracks_info_initialized = False
         self._playing_group = False
+        self._playing_group_ctx = None
 
         def update_url(track):
             if utils.is_spotify_track(track.url):
@@ -101,9 +102,8 @@ class Soundtrack(commands.Cog,
 
         if key is None or index not in range(len(self._tracks[key])):
             return await ctx.send(f'Faixa inválida.')
-        else:
-            self._current_track = ost_key.KeyIndex(key=key, index=index)
 
+        self._current_track = ost_key.KeyIndex(key=key, index=index)
         await self._play_track(ctx, key, index, stream=True, loop_stream=True)
 
     @commands.command(aliases=['g'])
@@ -124,7 +124,9 @@ class Soundtrack(commands.Cog,
 
         # Start playing the tracks in the group
         self._playing_group = True
+        self._playing_group_ctx = ctx
         await self._play_next_track_in_group(ctx, key)
+        self._group_loop.start()
 
     @commands.command(aliases=['v', 'vol'])
     async def volume(self, ctx, volume: int):
@@ -200,6 +202,7 @@ class Soundtrack(commands.Cog,
         """
         # Stop playing group
         self._playing_group = False
+        self._group_loop.stop()
 
         if ctx.voice_client is None:
             if ctx.author.voice:
@@ -208,6 +211,29 @@ class Soundtrack(commands.Cog,
                 await ctx.send("Você não está conectado a um canal de voz.")
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
+
+    @tasks.loop(seconds=0.5)
+    async def _group_loop(self):
+        """
+        Plays the next music track for the current group.
+        """
+        if self._playing_group:
+            # If there's a group playing, get the context and current track
+            ctx = self._playing_group_ctx
+            t = self._current_track
+
+            if ctx.voice_client and not ctx.voice_client.is_playing():
+                await self._play_next_track_in_group(ctx, t.key)
+
+    async def _play_next_track_in_group(self, ctx, key: ost_key.OSTKey):
+        index = self._random_track_index_in_group(key)
+
+        # Update current track
+        self._current_track = ost_key.KeyIndex(key=key, index=index)
+
+        await self._play_track(ctx, key, index,
+                               stream=True,
+                               loop_stream=False)
 
     def _random_track_index_in_group(self, group: ost_key.OSTKey):
         # Get current track information
@@ -227,37 +253,6 @@ class Soundtrack(commands.Cog,
         new_index = random.choice(index_pool)
 
         return new_index
-
-    async def _play_next_track_in_group(self, ctx, key: ost_key.OSTKey):
-        if not self._playing_group or not ctx.voice_client or ctx.voice_client.is_playing():
-            # If there's no group currently playing, skip
-            # If there's no voice client, skip
-            # If there's a song playing already, skip
-            return
-
-        index = self._random_track_index_in_group(key)
-
-        # Update current track
-        self._current_track = ost_key.KeyIndex(key=key, index=index)
-
-        # Wait for the track source
-        track = await track_source.TrackSource.from_url(
-            self._tracks[key][index].url,
-            loop=self._bot.loop,
-            stream=True,
-            loop_stream=False)
-
-        def _play_next(error):
-            if error:
-                print(error)
-            else:
-                self._bot.loop.create_task(
-                    self._play_next_track_in_group(ctx, key))
-
-        await self._play_track(ctx, key, index,
-                               stream=True,
-                               loop_stream=False,
-                               after_track=_play_next)
 
     async def _play_track(self, ctx,
                           key: ost_key.OSTKey,
