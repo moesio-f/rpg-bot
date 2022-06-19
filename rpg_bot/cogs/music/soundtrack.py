@@ -104,20 +104,7 @@ class Soundtrack(commands.Cog,
         else:
             self._current_track = ost_key.KeyIndex(key=key, index=index)
 
-        track = await track_source.TrackSource.from_url(
-            self._tracks[key][index].url,
-            loop=self._bot.loop,
-            stream=True)
-
-        async with ctx.typing():
-            ctx.voice_client.play(track,
-                                  after=lambda e: print(e) if e else None)
-
-        track_info = self._current_track
-        await ctx.send('Tocando '
-                       f'{key.name}{index + 1}: '
-                       f'\"{track_info.title}\" ({track_info.duration})'
-                       'na caixa!!')
+        await self._play_track(ctx, key, index, stream=True, loop_stream=True)
 
     @commands.command(aliases=['g'])
     async def group(self, ctx, value: str):
@@ -222,7 +209,7 @@ class Soundtrack(commands.Cog,
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
 
-    def _choose_random_track_in_group(self, group: ost_key.OSTKey):
+    def _random_track_index_in_group(self, group: ost_key.OSTKey):
         # Get current track information
         k = self._current_track.key
         i = self._current_track.index
@@ -248,7 +235,7 @@ class Soundtrack(commands.Cog,
             # If there's a song playing already, skip
             return
 
-        index = self._choose_random_track_in_group(key)
+        index = self._random_track_index_in_group(key)
 
         # Update current track
         self._current_track = ost_key.KeyIndex(key=key, index=index)
@@ -267,10 +254,29 @@ class Soundtrack(commands.Cog,
                 self._bot.loop.create_task(
                     self._play_next_track_in_group(ctx, key))
 
-        async with ctx.typing():
-            ctx.voice_client.play(track, after=_play_next)
+        await self._play_track(ctx, key, index,
+                               stream=True,
+                               loop_stream=False,
+                               after_track=_play_next)
 
+    async def _play_track(self, ctx,
+                          key: ost_key.OSTKey,
+                          index: int,
+                          stream: bool,
+                          loop_stream: bool,
+                          after_track=lambda e: print(e) if e else None):
         t = self._tracks[key][index]
+
+        track = await track_source.TrackSource.from_url(
+            t.url,
+            loop=self._bot.loop,
+            stream=stream,
+            loop_stream=loop_stream)
+
+        async with ctx.typing():
+            ctx.voice_client.play(track,
+                                  after=after_track)
+
         await ctx.send('Tocando a música '
                        f'{key.name}{index + 1}: '
                        f'\"{t.title}\" ({t.duration}).')
