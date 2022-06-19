@@ -23,6 +23,7 @@ class Soundtrack(commands.Cog,
         self._current_track: ost_key.KeyIndex = ost_key.KeyIndex(
             key=None, index=-1)
         self._tracks_info_initialized = False
+        self._playing_group = False
 
         def update_url(track):
             if utils.is_spotify_track(track.url):
@@ -118,47 +119,25 @@ class Soundtrack(commands.Cog,
                        f'\"{track_info.title}\" ({track_info.duration})'
                        'na caixa!!')
 
-    @commands.command(aliases=['g', 'group'])
-    async def play_group(self, ctx, value: str):
+    @commands.command(aliases=['g'])
+    async def group(self, ctx, value: str):
         """
         Plays random music tracks of a given OST type in loop.
 
         :param value: OST type
         """
-        key = ost_key.OSTKey.from_str(value[0])
+        key = ost_key.OSTKey.from_str(value)
 
         if key is None:
+            self._playing_group = False
             return await ctx.send(f'Grupo inválido.')
-        else:
-            k = self._current_track.key
-            index = self._current_track.index
-            index_pool = list(range(len(self._tracks[key])))
+        elif self._playing_group:
+            print('Unexpected: playing_group=True')
+            return
 
-            if k == key:
-                del index_pool[index]
-
-            index = random.choice(index_pool)
-            self._current_track = ost_key.KeyIndex(key=key, index=index)
-
-        track = await track_source.TrackSource.from_url(
-            self._tracks[key][index].url,
-            loop=self._bot.loop,
-            stream=True,
-            loop_stream=False)
-
-        def _play_next(error):
-            if error:
-                print(error)
-            else:
-                self._bot.loop.create_task(self.play_group(ctx, value))
-
-        async with ctx.typing():
-            ctx.voice_client.play(track, after=_play_next)
-
-        await ctx.send('Tocando '
-                       f'{key.name}{index + 1}: '
-                       f'\"{self._tracks[key][index].title}\" '
-                       'na caixa!!')
+        # Start playing the tracks in the group
+        self._playing_group = True
+        await self._play_next_track_in_group(ctx, key)
 
     @commands.command(aliases=['v', 'vol'])
     async def volume(self, ctx, volume: int):
@@ -227,11 +206,14 @@ class Soundtrack(commands.Cog,
                 await ctx.send(f"```{music_str}```")
 
     @play.before_invoke
-    @play_group.before_invoke
+    @group.before_invoke
     async def ensure_voice(self, ctx):
         """
         Guarantees that play methods can play an audio.
         """
+        # Stop playing group
+        self._playing_group = False
+
         if ctx.voice_client is None:
             if ctx.author.voice:
                 await ctx.author.voice.channel.connect()
@@ -239,3 +221,56 @@ class Soundtrack(commands.Cog,
                 await ctx.send("Você não está conectado a um canal de voz.")
         elif ctx.voice_client.is_playing():
             ctx.voice_client.stop()
+
+    def _choose_random_track_in_group(self, group: ost_key.OSTKey):
+        # Get current track information
+        k = self._current_track.key
+        i = self._current_track.index
+
+        # Create pool of possible indices
+        index_pool = list(range(len(self._tracks[group])))
+
+        if k == group:
+            # Remove the current playing track
+            # if the current (last) playing track
+            # is from the same group as the target
+            del index_pool[i]
+
+        # Choose a random new index
+        new_index = random.choice(index_pool)
+
+        return new_index
+
+    async def _play_next_track_in_group(self, ctx, key: ost_key.OSTKey):
+        if not self._playing_group or not ctx.voice_client or ctx.voice_client.is_playing():
+            # If there's no group currently playing, skip
+            # If there's no voice client, skip
+            # If there's a song playing already, skip
+            return
+
+        index = self._choose_random_track_in_group(key)
+
+        # Update current track
+        self._current_track = ost_key.KeyIndex(key=key, index=index)
+
+        # Wait for the track source
+        track = await track_source.TrackSource.from_url(
+            self._tracks[key][index].url,
+            loop=self._bot.loop,
+            stream=True,
+            loop_stream=False)
+
+        def _play_next(error):
+            if error:
+                print(error)
+            else:
+                self._bot.loop.create_task(
+                    self._play_next_track_in_group(ctx, key))
+
+        async with ctx.typing():
+            ctx.voice_client.play(track, after=_play_next)
+
+        t = self._tracks[key][index]
+        await ctx.send('Tocando a música '
+                       f'{key.name}{index + 1}: '
+                       f'\"{t.title}\" ({t.duration}).')
