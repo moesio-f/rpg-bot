@@ -104,7 +104,8 @@ class Soundtrack(commands.Cog,
                                           embed=utils.warn_embed("Não é possível remover uma faixa que está tocando."))
 
                 if index < self._current_track.index:
-                    self._current_track.index -= 1
+                    self._current_track = ost_key.KeyIndex(key=self._current_track.key,
+                                                           index=self._current_track.index - 1)
 
             title = self._tracks[key][index].title
             del self._tracks[key][index]
