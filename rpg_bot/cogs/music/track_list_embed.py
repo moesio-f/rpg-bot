@@ -66,6 +66,7 @@ class TrackListEmbedManager:
         self._tracks = tracks
         self._current_page = Page.HOME
         self._track_page: TrackPage = None
+        self._color = None
 
         self._ost_keys_info: typing.List[ost_key.OSTKeyInfo] = []
         self._ost_keys_info = [k.value for k in ost_key.OSTKey]
@@ -74,9 +75,10 @@ class TrackListEmbedManager:
 
     def home(self) -> EmbedContent:
         t = sum([len(l) for _, l in self._tracks.items()])
+        self._color = discord.Color.dark_blue()
         e = discord.Embed(title='Lista de Músicas',
                           description='Reaja para obter a lista de músicas cadastradas no grupo.',
-                          color=discord.Color.dark_blue())
+                          color=self._color)
         e.set_footer(text="Para voltar ao início use "
                      f"{TrackListEmbedManager.HOME_EMOJI} | "
                      f"Total de Músicas: {t}")
@@ -98,6 +100,7 @@ class TrackListEmbedManager:
     def track_page(self, emoji) -> EmbedContent:
         for k in ost_key.OSTKey:
             if emoji == k.value.emoji:
+                self._color = discord.Color.random()
                 self._track_page = TrackPage(self._tracks[k], k)
                 return self._show_track_page()
 
@@ -135,7 +138,7 @@ class TrackListEmbedManager:
 
         e = discord.Embed(title=f'{info.name}',
                           description=f'{info.desc}',
-                          color=discord.Color.random())
+                          color=self._color)
         reactions = [TrackListEmbedManager.HOME_EMOJI]
         e.set_footer(text=f"Página {p+1}/{l+1} | Total de Músicas: {t}")
 

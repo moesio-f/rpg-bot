@@ -189,6 +189,8 @@ class Soundtrack(commands.Cog,
         List all music tracks.
         """
 
+        await ctx.message.delete()
+
         def check(_, user):
             return user == ctx.author
 
