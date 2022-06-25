@@ -22,7 +22,10 @@ class TrackPage:
 
         self._entries = entries
         self._page = 0
-        self._last_page = math.ceil(len(self.tracks)/10) - 1
+        self._last_page = max(math.ceil(len(self.tracks)/10) - 1, 0)
+
+    def total_tracks(self) -> int:
+        return len(self.tracks)
 
     def has_previous_page(self) -> bool:
         return self._page > 0
@@ -30,11 +33,11 @@ class TrackPage:
     def has_next_page(self) -> bool:
         return self._page < self._last_page
 
-    def current_page(self) -> typing.List[track_info.TrackInfo]:
+    def current_page(self) -> typing.Tuple[typing.List[track_info.TrackInfo], int, int]:
         start = self._entries * self._page
         end = min(start + self._entries, len(self.tracks))
 
-        return self.tracks[start:end]
+        return self.tracks[start:end], self._page, self._last_page
 
     def next_page(self):
         self._page += 1
@@ -57,6 +60,7 @@ class TrackListEmbedManager:
     HOME_EMOJI = "🔷"
     NEXT_EMOJI = "▶️"
     PREV_EMOJI = "◀️"
+    HOME_THUMB = "https://d1fdloi71mui9q.cloudfront.net/f6wXXt6ZRqaoiLrCJqfe_7Hsx2OQ00B7v3ya3"
 
     def __init__(self, tracks: typing.Dict[ost_key.OSTKey, typing.List[track_info.TrackInfo]]):
         self._tracks = tracks
@@ -69,20 +73,24 @@ class TrackListEmbedManager:
                                         self._ost_keys_info))
 
     def home(self) -> EmbedContent:
+        t = sum([len(l) for _, l in self._tracks.items()])
         e = discord.Embed(title='Lista de Músicas',
                           description='Reaja para obter a lista de músicas cadastradas no grupo.',
                           color=discord.Color.dark_blue())
-        content = f"Para voltar a home reaja com {TrackListEmbedManager.HOME_EMOJI}"
+        e.set_footer(text="Para voltar ao início use "
+                     f"{TrackListEmbedManager.HOME_EMOJI} | "
+                     f"Total de Músicas: {t}")
+        e.set_thumbnail(url=TrackListEmbedManager.HOME_THUMB)
         reactions = [TrackListEmbedManager.HOME_EMOJI]
 
         for i in self._ost_keys_info:
-            e.add_field(name=f'{i.name}\t{i.emoji}',
+            e.add_field(name=f'{i.name} {i.emoji}',
                         value=f'{i.desc}',
                         inline=False)
             reactions.append(i.emoji)
 
         return EmbedContent(embed=e,
-                            content=content,
+                            content="",
                             reactions=reactions,
                             clear_reactions=True,
                             page=Page.HOME)
@@ -120,15 +128,16 @@ class TrackListEmbedManager:
         return self._show_track_page()
 
     def _show_track_page(self) -> EmbedContent:
-        tracks = self._track_page.current_page()
+        tracks, p, l = self._track_page.current_page()
         info = self._track_page.info
         key = self._track_page.key
+        t = self._track_page.total_tracks()
 
         e = discord.Embed(title=f'{info.name}',
                           description=f'{info.desc}',
-                          color=discord.Color.dark_green())
-        content = ""
+                          color=discord.Color.random())
         reactions = [TrackListEmbedManager.HOME_EMOJI]
+        e.set_footer(text=f"Página {p+1}/{l+1} | Total de Músicas: {t}")
 
         for i, t in enumerate(tracks):
             e.add_field(name=f'{t.title} ({t.duration})',
@@ -142,7 +151,7 @@ class TrackListEmbedManager:
             reactions.append(TrackListEmbedManager.PREV_EMOJI)
 
         return EmbedContent(embed=e,
-                            content=content,
+                            content="",
                             reactions=reactions,
                             clear_reactions=True,
                             page=Page.TRACKS)
