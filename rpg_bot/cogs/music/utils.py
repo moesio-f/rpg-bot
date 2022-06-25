@@ -2,6 +2,8 @@
 Utility methods for the Music cog.
 """
 
+import discord
+
 
 def format_duration(total) -> str:
     if total is None:
@@ -41,3 +43,21 @@ def from_duration_to_seconds(value: str) -> int:
 
 def is_spotify_track(url):
     return "open.spotify.com" in url and "track" in url
+
+
+def warn_embed(description: str, title="") -> discord.Embed:
+    return discord.Embed(title="",
+                         description=description,
+                         color=discord.Color.dark_red())
+
+
+def action_embed(description: str, title="") -> discord.Embed:
+    return discord.Embed(title=title,
+                         description=description,
+                         color=discord.Color.dark_green())
+
+
+def info_embed(description: str, title="") -> discord.Embed:
+    return discord.Embed(title=title,
+                         description=description,
+                         color=discord.Color.dark_purple())
