@@ -167,14 +167,28 @@ class Soundtrack(commands.Cog,
 
         :param volume: integer
         """
-        if ctx.voice_client is None:
+        if not ctx.voice_client or not ctx.voice_client.is_playing():
             e = discord.Embed(title="",
-                              description="Você não está conectado a um canal de voz.",
+                              description="Nenhuma música está tocando.",
                               color=discord.Color.dark_red())
             return await ctx.send(content='', embed=e)
 
         ctx.voice_client.source.volume = volume / 100
-        await ctx.send(f"Volume alterado para {volume}%")
+
+        blocks = []
+
+        for i in range(10):
+            t = (i + 1) * 10
+            if volume >= t:
+                blocks.append("🟩")
+            else:
+                blocks.append("⬛")
+
+        e = discord.Embed(title="",
+                          description=f"Volume: {' '.join(blocks)} ({volume}%)",
+                          color=discord.Color.dark_teal())
+
+        await ctx.send(content="", embed=e)
         await ctx.message.delete()
 
     @commands.command(aliases=['s'])
