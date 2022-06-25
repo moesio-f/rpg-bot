@@ -195,7 +195,7 @@ class Soundtrack(commands.Cog,
                 ctx.voice_client.stop()
                 e = discord.Embed(title="",
                                   description="Parando de tocar.",
-                                  color=discord.Color.dark_teal())
+                                  color=discord.Color.dark_red())
                 await ctx.send(content='', embed=e)
 
     @commands.command()
@@ -211,7 +211,7 @@ class Soundtrack(commands.Cog,
 
                 e = discord.Embed(title="",
                                   description=f"{current_track.title}",
-                                  color=discord.Color.dark_theme())
+                                  color=discord.Color.dark_teal())
                 e.add_field(name='Faixa',
                             value=f'[{k.name}{i+1}]({current_track.url})')
                 e.add_field(name='Duração',
@@ -274,7 +274,7 @@ class Soundtrack(commands.Cog,
         fname = self._save_tracks()
         e = discord.Embed(title="OSTs Salvas",
                           description="",
-                          color=discord.Color.dark_theme())
+                          color=discord.Color.dark_teal())
 
         t = sum([len(l) for _, l in self._tracks.items()])
         d = sum([utils.from_duration_to_seconds(t.duration)
@@ -288,9 +288,11 @@ class Soundtrack(commands.Cog,
 
         for k in ost_key.OSTKey:
             i: ost_key.OSTKeyInfo = k.value
-            e.add_field(name=f'{i.name} ({i.emoji})',
-                        value=f'{len(self._tracks[k])}',
-                        inline=False)
+            d = sum([utils.from_duration_to_seconds(t.duration)
+                     for t in self._tracks[k]])
+            d = utils.format_duration_w_hours(d)
+            e.add_field(name=f'{i.name}',
+                        value=f'{len(self._tracks[k])} ({d})')
 
         await ctx.send(content='',
                        embed=e,
@@ -392,7 +394,7 @@ class Soundtrack(commands.Cog,
 
         e = discord.Embed(title="",
                           description=f"{t.title}",
-                          color=discord.Color.dark_theme())
+                          color=discord.Color.dark_teal())
         e.add_field(name='Faixa',
                     value=f'[{key.name}{index+1}]({t.url})')
         e.add_field(name='Duração',
