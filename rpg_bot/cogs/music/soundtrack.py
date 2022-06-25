@@ -97,8 +97,19 @@ class Soundtrack(commands.Cog,
         if key is None or index not in range(len(self._tracks[key])):
             return await ctx.send(content='', embed=utils.warn_embed("Faixa inválida."))
 
-        title = self._tracks[key][index].title
-        del self._tracks[key][index]
+        async with self._semaphore:
+            if key == self._current_track.key:
+                if index == self._current_track.index:
+                    return await ctx.send(content='',
+                                          embed=utils.warn_embed("Não é possível remover uma faixa que está tocando."))
+
+                if index < self._current_track.index:
+                    self._current_track = ost_key.KeyIndex(key=self._current_track.key,
+                                                           index=self._current_track.index - 1)
+
+            title = self._tracks[key][index].title
+            del self._tracks[key][index]
+
         await ctx.send(content='',
                        embed=utils.action_embed(f'Faixa \"{title}\" ({key.name}{index + 1}) removida.'))
 
