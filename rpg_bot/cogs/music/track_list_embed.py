@@ -1,6 +1,6 @@
-from turtle import color, title
 import typing
 import enum
+import math
 
 import discord
 
@@ -22,7 +22,7 @@ class TrackPage:
 
         self._entries = entries
         self._page = 0
-        self._last_page = int(len(self.tracks)/10) - 1
+        self._last_page = math.ceil(len(self.tracks)/10) - 1
 
     def has_previous_page(self) -> bool:
         return self._page > 0
@@ -32,7 +32,7 @@ class TrackPage:
 
     def current_page(self) -> typing.List[track_info.TrackInfo]:
         start = self._entries * self._page
-        end = start + self._entries
+        end = min(start + self._entries, len(self.tracks))
 
         return self.tracks[start:end]
 
@@ -55,8 +55,8 @@ class EmbedContent(typing.NamedTuple):
 
 class TrackListEmbedManager:
     HOME_EMOJI = "🔷"
-    NEXT_EMOJI = "▶"
-    PREV_EMOJI = "◀"
+    NEXT_EMOJI = "▶️"
+    PREV_EMOJI = "◀️"
 
     def __init__(self, tracks: typing.Dict[ost_key.OSTKey, typing.List[track_info.TrackInfo]]):
         self._tracks = tracks
@@ -110,11 +110,13 @@ class TrackListEmbedManager:
             return self.track_page(emoji)
 
     def _next_track_page(self) -> EmbedContent:
-        self._track_page.next_page()
+        if self._track_page.has_next_page():
+            self._track_page.next_page()
         return self._show_track_page()
 
     def _previous_track_page(self) -> EmbedContent:
-        self._track_page.previous_page()
+        if self._track_page.has_previous_page():
+            self._track_page.previous_page()
         return self._show_track_page()
 
     def _show_track_page(self) -> EmbedContent:
