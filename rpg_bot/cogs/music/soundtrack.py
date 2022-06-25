@@ -1,6 +1,7 @@
 import typing
 import collections
 import random
+import asyncio
 
 from discord.ext import commands, tasks
 from spotdl.search import song_gatherer
@@ -25,6 +26,7 @@ class Soundtrack(commands.Cog,
         self._tracks_info_initialized = False
         self._playing_group = False
         self._playing_group_ctx = None
+        self._semaphore = asyncio.Semaphore(1)
 
         def update_url(track):
             if utils.is_spotify_track(track.url):
@@ -33,6 +35,7 @@ class Soundtrack(commands.Cog,
 
         self._update_url_if_spotify = update_url
         self._bot.loop.run_until_complete(self.__initialize())
+        self._group_loop.start()
 
     async def __initialize(self):
         if not self._tracks_info_initialized:
@@ -103,8 +106,9 @@ class Soundtrack(commands.Cog,
         if key is None or index not in range(len(self._tracks[key])):
             return await ctx.send(f'Faixa inválida.')
 
-        self._current_track = ost_key.KeyIndex(key=key, index=index)
-        await self._play_track(ctx, key, index, stream=True, loop_stream=True)
+        async with self._semaphore:
+            self._current_track = ost_key.KeyIndex(key=key, index=index)
+            await self._play_track(ctx, key, index, stream=True, loop_stream=True)
 
     @commands.command(aliases=['g'])
     async def group(self, ctx, value: str):
@@ -116,24 +120,22 @@ class Soundtrack(commands.Cog,
         key = ost_key.OSTKey.from_str(value)
 
         if key is None:
-            self._playing_group = False
+            async with self._semaphore:
+                self._playing_group = False
             return await ctx.send(f'Grupo inválido.')
-        elif self._playing_group:
-            print('Unexpected: playing_group=True')
-            return
 
-        # Start playing the tracks in the group
-        self._playing_group = True
-        self._playing_group_ctx = ctx
-        await self._play_next_track_in_group(ctx, key)
-        self._group_loop.start()
+        async with self._semaphore:
+            # Start playing the tracks in the group
+            self._playing_group = True
+            self._playing_group_ctx = ctx
+            await self._play_next_track_in_group(ctx, key)
 
     @commands.command(aliases=['v', 'vol'])
     async def volume(self, ctx, volume: int):
         """
         Controls the music volume.
 
-        :param volume: integer 
+        :param volume: integer
         """
         if ctx.voice_client is None:
             return await ctx.send("Você não está conectado a um canal de voz.")
@@ -165,10 +167,12 @@ class Soundtrack(commands.Cog,
         """
         Prints information of the current playing track.
         """
-        if ctx.voice_client and ctx.voice_client.is_playing():
+        async with self._semaphore:
             k = self._current_track.key
             i = self._current_track.index
             current_track = self._tracks[k][i]
+
+        if ctx.voice_client and ctx.voice_client.is_playing():
             await ctx.send(f"\"{current_track.title}\" "
                            f"(Faixa {k.name}{i + 1}, {current_track.duration}) "
                            "está atualmente tocando.")
@@ -196,14 +200,18 @@ class Soundtrack(commands.Cog,
 
     @play.before_invoke
     @group.before_invoke
-    async def ensure_voice(self, ctx):
+    async def ensure_voice_stop_group(self, ctx):
         """
-        Guarantees that play methods can play an audio.
+        Guarantees that play methods can play an audio and a group is not playing.
         """
         # Stop playing group
         self._playing_group = False
-        self._group_loop.stop()
+        await self._ensure_voice(ctx)
 
+    async def _ensure_voice(self, ctx):
+        """
+        Guarantees that play methods can play an audio.
+        """
         if ctx.voice_client is None:
             if ctx.author.voice:
                 await ctx.author.voice.channel.connect()
@@ -217,16 +225,22 @@ class Soundtrack(commands.Cog,
         """
         Plays the next music track for the current group.
         """
-        if self._playing_group:
-            # If there's a group playing, get the context and current track
+        async with self._semaphore:
+            playing_group = self._playing_group
             ctx = self._playing_group_ctx
             t = self._current_track
+            voice_client = ctx.voice_client if ctx else None
 
-            if ctx.voice_client and not ctx.voice_client.is_playing():
-                await self._play_next_track_in_group(ctx, t.key)
+            if playing_group:
+                # If there's a group playing, get the context and current track
+                if voice_client and not voice_client.is_playing():
+                    await self._play_next_track_in_group(ctx, t.key)
 
     async def _play_next_track_in_group(self, ctx, key: ost_key.OSTKey):
-        index = self._random_track_index_in_group(key)
+        # Before playing next track, ensure voice.
+        await self._ensure_voice(ctx)
+
+        index = await self._random_track_index_in_group(key)
 
         # Update current track
         self._current_track = ost_key.KeyIndex(key=key, index=index)
@@ -235,7 +249,7 @@ class Soundtrack(commands.Cog,
                                stream=True,
                                loop_stream=False)
 
-    def _random_track_index_in_group(self, group: ost_key.OSTKey):
+    async def _random_track_index_in_group(self, group: ost_key.OSTKey):
         # Get current track information
         k = self._current_track.key
         i = self._current_track.index
