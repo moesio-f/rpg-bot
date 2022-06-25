@@ -203,10 +203,17 @@ class Soundtrack(commands.Cog,
         while True:
             try:
                 reaction, _ = await self._bot.wait_for("reaction_add", timeout=60.0)
-                # Pass reaction to controller
-                # Get embed message
-                # Remove reactions (if required)
-                # Set all reactions (list)
+                e = manager.react(reaction.emoji)
+
+                if e.clear_reactions:
+                    await message.clear_reactions()
+
+                await message.edit(content=e.content,
+                                   embed=e.embed)
+
+                for emoji in e.reactions:
+                    await message.add_reaction(emoji)
+
             except asyncio.TimeoutError:
                 await message.delete()
                 break
