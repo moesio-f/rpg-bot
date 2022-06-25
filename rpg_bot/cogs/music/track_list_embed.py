@@ -77,7 +77,7 @@ class TrackListEmbedManager:
 
         for i in self._ost_keys_info:
             e.add_field(name=f'{i.name}\t{i.emoji}',
-                        value=f'{i.desc}', 
+                        value=f'{i.desc}',
                         inline=False)
             reactions.append(i.emoji)
 
@@ -122,6 +122,7 @@ class TrackListEmbedManager:
     def _show_track_page(self) -> EmbedContent:
         tracks = self._track_page.current_page()
         info = self._track_page.info
+        key = self._track_page.key
 
         e = discord.Embed(title=f'{info.name}',
                           description=f'{info.desc}',
@@ -129,9 +130,9 @@ class TrackListEmbedManager:
         content = ""
         reactions = [TrackListEmbedManager.HOME_EMOJI]
 
-        for t in tracks:
+        for i, t in enumerate(tracks):
             e.add_field(name=f'{t.title} ({t.duration})',
-                        value=f'{t.url}', 
+                        value=f'Faixa [{key.name}{i+1}]({t.url})',
                         inline=False)
 
         if self._track_page.has_next_page():
