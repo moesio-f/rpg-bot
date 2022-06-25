@@ -144,7 +144,7 @@ class Soundtrack(commands.Cog,
         """
         key = ost_key.OSTKey.from_str(value)
 
-        if key is None:
+        if key is None or not len(self._tracks[key]):
             async with self._semaphore:
                 self._playing_group = False
             e = discord.Embed(title="",
