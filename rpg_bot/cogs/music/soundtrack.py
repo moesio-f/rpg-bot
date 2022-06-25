@@ -1,7 +1,6 @@
 import os
 import re
 import typing
-import collections
 import random
 import asyncio
 import datetime
@@ -11,6 +10,7 @@ from spotdl.search import song_gatherer
 
 from rpg_bot.cogs.music import utils
 from rpg_bot.cogs.music import track_source, track_info, ost_key
+from rpg_bot.cogs.music import track_list_embed
 
 
 class Soundtrack(commands.Cog,
@@ -188,19 +188,41 @@ class Soundtrack(commands.Cog,
         """
         List all music tracks.
         """
-        ordered_dict = collections.OrderedDict(sorted(self._tracks.items(),
-                                                      key=lambda k: str(k[0].name)))
-        music_list = [f"{k.name}{i + 1}:\t{t.title} ({t.duration})"
-                      for k, l in ordered_dict.items()
-                      for i, t in enumerate(l)]
-        await ctx.send('Músicas na lista:')
 
-        entries = 10
+        await ctx.message.delete()
 
-        async with ctx.typing():
-            for i in range(0, len(music_list), entries):
-                music_str = '\n'.join(music_list[i:i+entries])
-                await ctx.send(f"```{music_str}```")
+        def check(_, user):
+            return user == ctx.author
+
+        manager = track_list_embed.TrackListEmbedManager(self._tracks)
+        e = manager.home()
+
+        message = await ctx.send(content=e.content,
+                                 embed=e.embed)
+
+        if e.clear_reactions:
+            await message.clear_reactions()
+
+        for emoji in e.reactions:
+            await message.add_reaction(emoji)
+
+        while True:
+            try:
+                reaction, _ = await self._bot.wait_for("reaction_add", timeout=60.0, check=check)
+                e = manager.react(reaction.emoji)
+
+                if e.clear_reactions:
+                    await message.clear_reactions()
+
+                await message.edit(content=e.content,
+                                   embed=e.embed)
+
+                for emoji in e.reactions:
+                    await message.add_reaction(emoji)
+
+            except asyncio.TimeoutError:
+                await message.delete()
+                break
 
     @commands.command()
     async def save(self, ctx):
