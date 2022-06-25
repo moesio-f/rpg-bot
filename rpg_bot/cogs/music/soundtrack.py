@@ -154,6 +154,10 @@ class Soundtrack(commands.Cog,
             self._playing_group_ctx = ctx
             await self._play_next_track_in_group(ctx, key)
 
+            # Wait a few seconds to prevent _group_loop(...)
+            # from playing a new song
+            await asyncio.sleep(2)
+
     @commands.command(aliases=['v', 'vol'])
     async def volume(self, ctx, volume: int):
         """
@@ -327,7 +331,7 @@ class Soundtrack(commands.Cog,
     @add.after_invoke
     @remove.after_invoke
     @play.after_invoke
-    @group.after_invoke
+    @group.before_invoke
     @volume.after_invoke
     @stop.after_invoke
     @clear.after_invoke
