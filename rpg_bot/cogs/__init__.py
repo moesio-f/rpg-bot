@@ -1,1 +1,1 @@
-import rpg_bot.cogs.music
+from rpg_bot.cogs import music

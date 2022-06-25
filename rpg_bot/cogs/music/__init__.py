@@ -1,3 +1,5 @@
-import rpg_bot.cogs.music.music_list
-import rpg_bot.cogs.music.track_source
-import rpg_bot.cogs.music.track_info
+from rpg_bot.cogs.music import soundtrack
+from rpg_bot.cogs.music import track_source
+from rpg_bot.cogs.music import track_info
+from rpg_bot.cogs.music import utils
+from rpg_bot.cogs.music import ost_key

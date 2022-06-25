@@ -3,10 +3,11 @@ import typing
 from spotdl.search import spotify_client
 from discord.ext import commands
 
-from rpg_bot import cogs
+from rpg_bot.cogs import music
 
 
-def start_bot(urls: typing.List[str], token: str):
+def start_bot(urls: typing.Dict[music.ost_key.OSTKey, typing.List[str]],
+              token: str):
     bot = commands.Bot(command_prefix='$$')
 
     @bot.event
@@ -19,5 +20,5 @@ def start_bot(urls: typing.List[str], token: str):
         client_secret="212476d9b0f3472eaa762d90b19b0ba8",
         user_auth=False)
 
-    bot.add_cog(cogs.music.music_list.MusicList(bot, urls))
+    bot.add_cog(music.soundtrack.Soundtrack(bot=bot, urls=urls))
     bot.run(token)
