@@ -87,7 +87,6 @@ class Soundtrack(commands.Cog,
                           description=f'Faixa \"{track.title}\" ({track.duration}) adicionada.',
                           color=discord.Color.dark_green())
         await ctx.send(content='', embed=e)
-        await ctx.message.delete()
 
     @commands.command(aliases=['r', 'rem'])
     async def remove(self, ctx, value: str):
@@ -111,7 +110,6 @@ class Soundtrack(commands.Cog,
                           description=f'Faixa \"{title}\" ({key.name}{index + 1}) removida.',
                           color=discord.Color.dark_green())
         await ctx.send(content='', embed=e)
-        await ctx.message.delete()
 
     @commands.command(aliases=['p'])
     async def play(self, ctx, value: str):
@@ -132,8 +130,6 @@ class Soundtrack(commands.Cog,
         async with self._semaphore:
             self._current_track = ost_key.KeyIndex(key=key, index=index)
             await self._play_track(ctx, key, index, stream=True, loop_stream=True)
-
-        await ctx.message.delete()
 
     @commands.command(aliases=['g'])
     async def group(self, ctx, value: str):
@@ -157,8 +153,6 @@ class Soundtrack(commands.Cog,
             self._playing_group = True
             self._playing_group_ctx = ctx
             await self._play_next_track_in_group(ctx, key)
-
-        await ctx.message.delete()
 
     @commands.command(aliases=['v', 'vol'])
     async def volume(self, ctx, volume: int):
@@ -189,7 +183,6 @@ class Soundtrack(commands.Cog,
                           color=discord.Color.dark_teal())
 
         await ctx.send(content="", embed=e)
-        await ctx.message.delete()
 
     @commands.command(aliases=['s'])
     async def stop(self, ctx):
@@ -203,7 +196,6 @@ class Soundtrack(commands.Cog,
                               description="Saindo do canal.",
                               color=discord.Color.dark_red())
             await ctx.send(content='', embed=e)
-            await ctx.message.delete()
 
     @commands.command(aliases=['c'])
     async def clear(self, ctx):
@@ -219,7 +211,6 @@ class Soundtrack(commands.Cog,
                                   description="Parando de tocar.",
                                   color=discord.Color.dark_red())
                 await ctx.send(content='', embed=e)
-                await ctx.message.delete()
 
     @commands.command()
     async def current(self, ctx):
@@ -246,15 +237,11 @@ class Soundtrack(commands.Cog,
                                   color=discord.Color.dark_teal())
                 await ctx.send(content='', embed=e)
 
-        await ctx.message.delete()
-
     @commands.command(aliases=['l'])
     async def list(self, ctx):
         """
         List all music tracks.
         """
-
-        await ctx.message.delete()
 
         def check(_, user):
             return user == ctx.author
@@ -321,8 +308,6 @@ class Soundtrack(commands.Cog,
                        embed=e,
                        file=discord.File(fname))
 
-        await ctx.message.delete()
-
     @play.before_invoke
     @group.before_invoke
     async def ensure_voice_stop_group(self, ctx):
@@ -338,6 +323,19 @@ class Soundtrack(commands.Cog,
     @remove.after_invoke
     async def save_tracks(self, ctx):
         self._save_tracks()
+
+    @add.after_invoke
+    @remove.after_invoke
+    @play.after_invoke
+    @group.after_invoke
+    @volume.after_invoke
+    @stop.after_invoke
+    @clear.after_invoke
+    @current.after_invoke
+    @list.before_invoke
+    @save.after_invoke
+    async def _clear_command_message(self, ctx):
+        await ctx.message.delete()
 
     async def _ensure_voice(self, ctx):
         """
