@@ -5,6 +5,7 @@ import random
 import asyncio
 import datetime
 
+import discord
 from discord.ext import commands, tasks
 from spotdl.search import song_gatherer
 
@@ -162,9 +163,12 @@ class Soundtrack(commands.Cog,
         """
         Stop playing the current track.
         """
-        if ctx.voice_client and ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
-            await ctx.send('Parando de tocar.')
+        async with self._semaphore:
+            self._playing_group = False
+
+            if ctx.voice_client and ctx.voice_client.is_playing():
+                ctx.voice_client.stop()
+                await ctx.send('Parando de tocar.')
 
     @commands.command()
     async def current(self, ctx):
@@ -172,16 +176,23 @@ class Soundtrack(commands.Cog,
         Prints information of the current playing track.
         """
         async with self._semaphore:
-            k = self._current_track.key
-            i = self._current_track.index
-            current_track = self._tracks[k][i]
+            if ctx.voice_client and ctx.voice_client.is_playing():
+                k = self._current_track.key
+                i = self._current_track.index
+                current_track = self._tracks[k][i]
 
-        if ctx.voice_client and ctx.voice_client.is_playing():
-            await ctx.send(f"\"{current_track.title}\" "
-                           f"(Faixa {k.name}{i + 1}, {current_track.duration}) "
-                           "está atualmente tocando.")
-        else:
-            await ctx.send("Nenhuma faixa tocando no momento.")
+                e = discord.Embed(title="",
+                                  description=f"{current_track.title}",
+                                  color=discord.Color.dark_theme())
+                e.add_field(name='Faixa',
+                            value=f'[{k.name}{i+1}]({current_track.url})')
+                e.add_field(name='Duração',
+                            value=f'{current_track.duration}')
+                await ctx.send(content="", embed=e)
+            else:
+                await ctx.send("Nenhuma faixa tocando no momento.")
+
+        await ctx.message.delete()
 
     @commands.command(aliases=['l'])
     async def list(self, ctx):
@@ -238,8 +249,9 @@ class Soundtrack(commands.Cog,
         """
         Guarantees that play methods can play an audio and a group is not playing.
         """
-        # Stop playing group
-        self._playing_group = False
+        async with self._semaphore:
+            # Stop playing group
+            self._playing_group = False
         await self._ensure_voice(ctx)
 
     @add.after_invoke
@@ -325,9 +337,14 @@ class Soundtrack(commands.Cog,
             ctx.voice_client.play(track,
                                   after=after_track)
 
-        await ctx.send('Tocando a música '
-                       f'{key.name}{index + 1}: '
-                       f'\"{t.title}\" ({t.duration}).')
+        e = discord.Embed(title="",
+                          description=f"{t.title}",
+                          color=discord.Color.dark_theme())
+        e.add_field(name='Faixa',
+                    value=f'[{key.name}{index+1}]({t.url})')
+        e.add_field(name='Duração',
+                    value=f'{t.duration}')
+        await ctx.send(content="", embed=e)
 
     def _save_tracks(self, dir: str = 'soundtracks'):
         date = datetime.datetime.today().strftime('%d-%m-%Y')
