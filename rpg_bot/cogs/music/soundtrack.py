@@ -1,7 +1,10 @@
+import os
+import re
 import typing
 import collections
 import random
 import asyncio
+import datetime
 
 from discord.ext import commands, tasks
 from spotdl.search import song_gatherer
@@ -36,6 +39,7 @@ class Soundtrack(commands.Cog,
         self._update_url_if_spotify = update_url
         self._bot.loop.run_until_complete(self.__initialize())
         self._group_loop.start()
+        self._save_tracks()
 
     async def __initialize(self):
         if not self._tracks_info_initialized:
@@ -198,6 +202,14 @@ class Soundtrack(commands.Cog,
                 music_str = '\n'.join(music_list[i:i+entries])
                 await ctx.send(f"```{music_str}```")
 
+    @commands.command()
+    async def save(self, ctx):
+        """
+        Save current OST tracks in the list.
+        """
+        self._save_tracks()
+        await ctx.send('OSTs salvas.')
+
     @play.before_invoke
     @group.before_invoke
     async def ensure_voice_stop_group(self, ctx):
@@ -207,6 +219,11 @@ class Soundtrack(commands.Cog,
         # Stop playing group
         self._playing_group = False
         await self._ensure_voice(ctx)
+
+    @add.after_invoke
+    @remove.after_invoke
+    async def save_tracks(self, ctx):
+        self._save_tracks()
 
     async def _ensure_voice(self, ctx):
         """
@@ -289,3 +306,17 @@ class Soundtrack(commands.Cog,
         await ctx.send('Tocando a música '
                        f'{key.name}{index + 1}: '
                        f'\"{t.title}\" ({t.duration}).')
+
+    def _save_tracks(self, dir: str = 'soundtracks'):
+        date = datetime.datetime.today().strftime('%d-%m-%Y')
+        fname = os.path.join(dir, f'ost-{date}.txt')
+        content = '\n'.join([f'{k.name}:{v.url}'
+                             for k, l in self._tracks.items()
+                             for v in l])
+        content = re.sub(r'\n+', '\n', content)
+
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+        with open(fname, 'w+') as file:
+            file.write(content)
