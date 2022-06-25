@@ -240,8 +240,30 @@ class Soundtrack(commands.Cog,
         """
         Save current OST tracks in the list.
         """
-        self._save_tracks()
-        await ctx.send('OSTs salvas.')
+        fname = self._save_tracks()
+        e = discord.Embed(title="OSTs Salvas",
+                          description="",
+                          color=discord.Color.dark_theme())
+
+        t = sum([len(l) for _, l in self._tracks.items()])
+        d = sum([utils.from_duration_to_seconds(t.duration)
+                 for _, l in self._tracks.items()
+                 for t in l])
+
+        e.add_field(name='Total de Faixas',
+                    value=f'{t}')
+        e.add_field(name='Duração Total',
+                    value=f'{utils.format_duration_w_hours(d)}')
+
+        for k in ost_key.OSTKey:
+            i: ost_key.OSTKeyInfo = k.value
+            e.add_field(name=f'{i.name} ({i.emoji})',
+                        value=f'{len(self._tracks[k])}',
+                        inline=False)
+
+        await ctx.send(content='',
+                       embed=e,
+                       file=discord.File(fname))
 
     @play.before_invoke
     @group.before_invoke
@@ -359,3 +381,5 @@ class Soundtrack(commands.Cog,
 
         with open(fname, 'w+') as file:
             file.write(content)
+
+        return fname
