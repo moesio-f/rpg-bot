@@ -10,17 +10,28 @@ class OSTKeyInfo:
 
 
 class OSTKey(enum.Enum):
-    A = OSTKeyInfo("Aparições", emoji=":regional_indicator_a:")
-    C = OSTKeyInfo("Combate", emoji=":regional_indicator_c:")
-    D = OSTKeyInfo("Drama", emoji=":regional_indicator_d:")
-    E = OSTKeyInfo("Exploração", emoji=":regional_indicator_e:")
-    F = OSTKeyInfo("Finalizando", emoji=":regional_indicator_f:")
-    H = OSTKeyInfo("Heróicas", emoji=":regional_indicator_h:")
-    I = OSTKeyInfo("Iniciando", emoji=":regional_indicator_i:")
-    S = OSTKeyInfo("Sad", emoji=":regional_indicator_s:")
-    T = OSTKeyInfo("Terror", emoji=":regional_indicator_t:")
-    W = OSTKeyInfo("What?", emoji=":regional_indicator_w:")
-    Q = OSTKeyInfo("Quimera", emoji=":regional_indicator_q:")
+    A = OSTKeyInfo("Aparições", emoji="🇦",
+                   desc="OST's para quando algum personagem mais importante aparecer")
+    C = OSTKeyInfo("Combate", emoji="🇨",
+                   desc="OST's para quando os jogadores entrarem em combate")
+    D = OSTKeyInfo("Drama", emoji="🇩",
+                   desc="OST's para quando algum personagem estiver perto de morrer ou alguma situação de risco")
+    E = OSTKeyInfo("Exploração", emoji="🇪",
+                   desc="OST's para quando os jogadores estiverem explorando")
+    F = OSTKeyInfo("Finalizando", emoji="🇫",
+                   desc="OST's para quando a sessão estiver chegando ao seu final")
+    H = OSTKeyInfo("Heróicas", emoji="🇭",
+                   desc="OST's para um momento Heróico")
+    I = OSTKeyInfo("Iniciando", emoji="🇮",
+                   desc="OST's para início da sessão")
+    Q = OSTKeyInfo("Quimera", emoji="🇶",
+                   desc="OST's para encontro com quimeras")
+    S = OSTKeyInfo("Sad", emoji="🇸",
+                   desc="OST's para quando algum momento mais emocionante estiver acontecendo")
+    T = OSTKeyInfo("Terror", emoji="🇹",
+                   desc="OST's para momentos de terror e/ou assustadores")
+    W = OSTKeyInfo("What?", emoji="🇼",
+                   desc="OST's para momentos que não fazem o menor sentido ou que sejam mais cômicos")
 
     @classmethod
     def from_str(cls, value: str):
