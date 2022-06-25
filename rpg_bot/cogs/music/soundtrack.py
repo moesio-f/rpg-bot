@@ -5,6 +5,7 @@ import random
 import asyncio
 import datetime
 
+import discord
 from discord.ext import commands, tasks
 from spotdl.search import song_gatherer
 
@@ -68,7 +69,10 @@ class Soundtrack(commands.Cog,
         key = ost_key.OSTKey.from_str(t)
 
         if key is None:
-            return await ctx.send(f'{t} não é um tipo de OST válido.')
+            e = discord.Embed(title="",
+                              description=f'{t} não é um tipo de OST válido.',
+                              color=discord.Color.dark_red())
+            return await ctx.send(content='', embed=e)
 
         track = track_info.TrackInfo(url=url)
         self._update_url_if_spotify(track)
@@ -78,7 +82,12 @@ class Soundtrack(commands.Cog,
         track.title = data.get('title')
         track.duration = utils.format_duration(data.get('duration'))
         self._tracks[key].append(track)
-        await ctx.send(f'Faixa \"{track.title}\" ({track.duration}) adicionada.')
+
+        e = discord.Embed(title="",
+                          description=f'Faixa \"{track.title}\" ({track.duration}) adicionada.',
+                          color=discord.Color.dark_green())
+        await ctx.send(content='', embed=e)
+        await ctx.message.delete()
 
     @commands.command(aliases=['r', 'rem'])
     async def remove(self, ctx, value: str):
@@ -91,11 +100,18 @@ class Soundtrack(commands.Cog,
         index = int(value[1:]) - 1
 
         if key is None or index not in range(len(self._tracks[key])):
-            return await ctx.send(f'Faixa inválida.')
+            e = discord.Embed(title="",
+                              description="Faixa inválida.",
+                              color=discord.Color.dark_red())
+            return await ctx.send(content='', embed=e)
 
         title = self._tracks[key][index].title
         del self._tracks[key][index]
-        await ctx.send(f'Faixa \"{title}\" ({key.name}{index + 1}) removida.')
+        e = discord.Embed(title="",
+                          description=f'Faixa \"{title}\" ({key.name}{index + 1}) removida.',
+                          color=discord.Color.dark_green())
+        await ctx.send(content='', embed=e)
+        await ctx.message.delete()
 
     @commands.command(aliases=['p'])
     async def play(self, ctx, value: str):
@@ -108,11 +124,16 @@ class Soundtrack(commands.Cog,
         index = int(value[1:]) - 1
 
         if key is None or index not in range(len(self._tracks[key])):
-            return await ctx.send(f'Faixa inválida.')
+            e = discord.Embed(title="",
+                              description="Faixa inválida.",
+                              color=discord.Color.dark_red())
+            return await ctx.send(content='', embed=e)
 
         async with self._semaphore:
             self._current_track = ost_key.KeyIndex(key=key, index=index)
             await self._play_track(ctx, key, index, stream=True, loop_stream=True)
+
+        await ctx.message.delete()
 
     @commands.command(aliases=['g'])
     async def group(self, ctx, value: str):
@@ -126,13 +147,18 @@ class Soundtrack(commands.Cog,
         if key is None:
             async with self._semaphore:
                 self._playing_group = False
-            return await ctx.send(f'Grupo inválido.')
+            e = discord.Embed(title="",
+                              description="Grupo inválido.",
+                              color=discord.Color.dark_red())
+            return await ctx.send(content='', embed=e)
 
         async with self._semaphore:
             # Start playing the tracks in the group
             self._playing_group = True
             self._playing_group_ctx = ctx
             await self._play_next_track_in_group(ctx, key)
+
+        await ctx.message.delete()
 
     @commands.command(aliases=['v', 'vol'])
     async def volume(self, ctx, volume: int):
@@ -141,11 +167,29 @@ class Soundtrack(commands.Cog,
 
         :param volume: integer
         """
-        if ctx.voice_client is None:
-            return await ctx.send("Você não está conectado a um canal de voz.")
+        if not ctx.voice_client or not ctx.voice_client.is_playing():
+            e = discord.Embed(title="",
+                              description="Nenhuma música está tocando.",
+                              color=discord.Color.dark_red())
+            return await ctx.send(content='', embed=e)
 
         ctx.voice_client.source.volume = volume / 100
-        await ctx.send(f"Volume alterado para {volume}%")
+
+        blocks = []
+
+        for i in range(10):
+            t = (i + 1) * 10
+            if volume >= t:
+                blocks.append("🟩")
+            else:
+                blocks.append("⬛")
+
+        e = discord.Embed(title="",
+                          description=f"Volume: {' '.join(blocks)} ({volume}%)",
+                          color=discord.Color.dark_teal())
+
+        await ctx.send(content="", embed=e)
+        await ctx.message.delete()
 
     @commands.command(aliases=['s'])
     async def stop(self, ctx):
@@ -155,16 +199,27 @@ class Soundtrack(commands.Cog,
         await self.clear(ctx)
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
-            await ctx.send('Saindo do canal.')
+            e = discord.Embed(title="",
+                              description="Saindo do canal.",
+                              color=discord.Color.dark_red())
+            await ctx.send(content='', embed=e)
+            await ctx.message.delete()
 
     @commands.command(aliases=['c'])
     async def clear(self, ctx):
         """
         Stop playing the current track.
         """
-        if ctx.voice_client and ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
-            await ctx.send('Parando de tocar.')
+        async with self._semaphore:
+            self._playing_group = False
+
+            if ctx.voice_client and ctx.voice_client.is_playing():
+                ctx.voice_client.stop()
+                e = discord.Embed(title="",
+                                  description="Parando de tocar.",
+                                  color=discord.Color.dark_red())
+                await ctx.send(content='', embed=e)
+                await ctx.message.delete()
 
     @commands.command()
     async def current(self, ctx):
@@ -172,16 +227,26 @@ class Soundtrack(commands.Cog,
         Prints information of the current playing track.
         """
         async with self._semaphore:
-            k = self._current_track.key
-            i = self._current_track.index
-            current_track = self._tracks[k][i]
+            if ctx.voice_client and ctx.voice_client.is_playing():
+                k = self._current_track.key
+                i = self._current_track.index
+                current_track = self._tracks[k][i]
 
-        if ctx.voice_client and ctx.voice_client.is_playing():
-            await ctx.send(f"\"{current_track.title}\" "
-                           f"(Faixa {k.name}{i + 1}, {current_track.duration}) "
-                           "está atualmente tocando.")
-        else:
-            await ctx.send("Nenhuma faixa tocando no momento.")
+                e = discord.Embed(title="",
+                                  description=f"{current_track.title}",
+                                  color=discord.Color.dark_teal())
+                e.add_field(name='Faixa',
+                            value=f'[{k.name}{i+1}]({current_track.url})')
+                e.add_field(name='Duração',
+                            value=f'{current_track.duration}')
+                await ctx.send(content="", embed=e)
+            else:
+                e = discord.Embed(title="",
+                                  description="Nenhuma faixa tocando no momento.",
+                                  color=discord.Color.dark_teal())
+                await ctx.send(content='', embed=e)
+
+        await ctx.message.delete()
 
     @commands.command(aliases=['l'])
     async def list(self, ctx):
@@ -229,8 +294,34 @@ class Soundtrack(commands.Cog,
         """
         Save current OST tracks in the list.
         """
-        self._save_tracks()
-        await ctx.send('OSTs salvas.')
+        fname = self._save_tracks()
+        e = discord.Embed(title="OSTs Salvas",
+                          description="",
+                          color=discord.Color.dark_teal())
+
+        t = sum([len(l) for _, l in self._tracks.items()])
+        d = sum([utils.from_duration_to_seconds(t.duration)
+                 for _, l in self._tracks.items()
+                 for t in l])
+
+        e.add_field(name='Total de Faixas',
+                    value=f'{t}')
+        e.add_field(name='Duração Total',
+                    value=f'{utils.format_duration_w_hours(d)}')
+
+        for k in ost_key.OSTKey:
+            i: ost_key.OSTKeyInfo = k.value
+            d = sum([utils.from_duration_to_seconds(t.duration)
+                     for t in self._tracks[k]])
+            d = utils.format_duration_w_hours(d)
+            e.add_field(name=f'{i.name}',
+                        value=f'{len(self._tracks[k])} ({d})')
+
+        await ctx.send(content='',
+                       embed=e,
+                       file=discord.File(fname))
+
+        await ctx.message.delete()
 
     @play.before_invoke
     @group.before_invoke
@@ -238,8 +329,9 @@ class Soundtrack(commands.Cog,
         """
         Guarantees that play methods can play an audio and a group is not playing.
         """
-        # Stop playing group
-        self._playing_group = False
+        async with self._semaphore:
+            # Stop playing group
+            self._playing_group = False
         await self._ensure_voice(ctx)
 
     @add.after_invoke
@@ -325,9 +417,14 @@ class Soundtrack(commands.Cog,
             ctx.voice_client.play(track,
                                   after=after_track)
 
-        await ctx.send('Tocando a música '
-                       f'{key.name}{index + 1}: '
-                       f'\"{t.title}\" ({t.duration}).')
+        e = discord.Embed(title="",
+                          description=f"{t.title}",
+                          color=discord.Color.dark_teal())
+        e.add_field(name='Faixa',
+                    value=f'[{key.name}{index+1}]({t.url})')
+        e.add_field(name='Duração',
+                    value=f'{t.duration}')
+        await ctx.send(content="", embed=e)
 
     def _save_tracks(self, dir: str = 'soundtracks'):
         date = datetime.datetime.today().strftime('%d-%m-%Y')
@@ -342,3 +439,5 @@ class Soundtrack(commands.Cog,
 
         with open(fname, 'w+') as file:
             file.write(content)
+
+        return fname
