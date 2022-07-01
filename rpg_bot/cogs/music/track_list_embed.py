@@ -47,6 +47,9 @@ class TrackPage:
         self._page -= 1
         self._page = max(self._page, 0)
 
+    def entries_per_page(self):
+        return self._entries
+
 
 class EmbedContent(typing.NamedTuple):
     embed: discord.Embed
@@ -135,6 +138,7 @@ class TrackListEmbedManager:
         info = self._track_page.info
         key = self._track_page.key
         t = self._track_page.total_tracks()
+        offset = self._track_page.entries_per_page() * p
 
         e = discord.Embed(title=f'{info.name}',
                           description=f'{info.desc}',
@@ -144,7 +148,7 @@ class TrackListEmbedManager:
 
         for i, t in enumerate(tracks):
             e.add_field(name=f'{t.title} ({t.duration})',
-                        value=f'Faixa [{key.name}{i+1}]({t.url})',
+                        value=f'Faixa [{key.name}{i+1+offset}]({t.url})',
                         inline=False)
 
         if self._track_page.has_next_page():
