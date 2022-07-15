@@ -30,8 +30,8 @@ class OSTKey(enum.Enum):
                    desc="OST's para quando algum momento mais emocionante estiver acontecendo")
     T = OSTKeyInfo("Terror", emoji="🇹",
                    desc="OST's para momentos de terror e/ou assustadores")
-    W = OSTKeyInfo("What?", emoji="🇼",
-                   desc="OST's para momentos que não fazem o menor sentido ou que sejam mais cômicos")
+    R = OSTKeyInfo("Revelação", emoji="🇷",
+                   desc="OST's para momentos de revelação")
 
     @classmethod
     def from_str(cls, value: str):
