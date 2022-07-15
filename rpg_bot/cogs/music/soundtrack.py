@@ -243,7 +243,7 @@ class Soundtrack(commands.Cog,
 
         while True:
             try:
-                reaction, _ = await self._bot.wait_for("reaction_add", timeout=60.0, check=check)
+                reaction, _ = await self._bot.wait_for("reaction_add", timeout=5*60.0, check=check)
                 e = manager.react(reaction.emoji)
 
                 if e.clear_reactions:
